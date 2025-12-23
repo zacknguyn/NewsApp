@@ -1,5 +1,5 @@
 // src/screens/Main/ArticleDetailScreen.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,12 @@ import {
   StyleSheet,
   Share,
   Dimensions,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -22,6 +28,12 @@ import {
 } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import RenderHtml from "react-native-render-html";
+import { Comment } from "../../types";
+import {
+  addComment,
+  subscribeToComments,
+  deleteComment,
+} from "../../services/commentService";
 
 const { width } = Dimensions.get("window");
 
@@ -32,9 +44,21 @@ export default function ArticleDetailScreen() {
   const { user } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [loadingComments, setLoadingComments] = useState(true);
+  const [submittingComment, setSubmittingComment] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     checkIfSaved();
+
+    // Subscribe to real-time comments
+    const unsubscribe = subscribeToComments(article.id, (newComments) => {
+      setComments(newComments);
+      setLoadingComments(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const checkIfSaved = async () => {
@@ -83,6 +107,98 @@ export default function ArticleDetailScreen() {
       day: "numeric",
     });
   };
+
+  const formatCommentDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return "Vừa xong";
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    return date.toLocaleDateString("vi-VN");
+  };
+
+  const handlePostComment = async () => {
+    if (!user) {
+      Alert.alert("Thông báo", "Vui lòng đăng nhập để bình luận");
+      return;
+    }
+
+    if (!commentText.trim()) {
+      Alert.alert("Thông báo", "Vui lòng nhập nội dung bình luận");
+      return;
+    }
+
+    try {
+      setSubmittingComment(true);
+      await addComment(
+        article.id,
+        user.id,
+        user.name,
+        commentText.trim(),
+        user.avatar
+      );
+      setCommentText("");
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể đăng bình luận");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = (comment: Comment) => {
+    if (user?.id !== comment.userId && user?.role !== "admin") {
+      return;
+    }
+
+    Alert.alert(
+      "Xác nhận xóa",
+      "Bạn có chắc muốn xóa bình luận này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteComment(comment.id);
+            } catch (error) {
+              Alert.alert("Lỗi", "Không thể xóa bình luận");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderComment = ({ item }: { item: Comment }) => (
+    <View style={styles.commentItem}>
+      <View style={styles.commentAvatar}>
+        <Ionicons name="person-circle" size={40} color="#9ca3af" />
+      </View>
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <Text style={styles.commentAuthor}>{item.userName}</Text>
+          <Text style={styles.commentDate}>{formatCommentDate(item.createdAt)}</Text>
+        </View>
+        <Text style={styles.commentText}>{item.content}</Text>
+        {(user?.id === item.userId || user?.role === "admin") && (
+          <TouchableOpacity
+            style={styles.deleteCommentButton}
+            onPress={() => handleDeleteComment(item)}
+          >
+            <Ionicons name="trash-outline" size={16} color="#dc2626" />
+            <Text style={styles.deleteCommentText}>Xóa</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -174,13 +290,71 @@ export default function ArticleDetailScreen() {
         </View>
 
         <View style={styles.tags}>
-          {article.tags.map((tag) => (
+          {article.tags.map((tag: string) => (
             <View key={tag} style={styles.tag}>
               <Text style={styles.tagText}>#{tag}</Text>
             </View>
           ))}
         </View>
+
+        {/* Comments Section */}
+        <View style={styles.commentsSection}>
+          <View style={styles.commentsSectionHeader}>
+            <Ionicons name="chatbubbles" size={20} color="#000" />
+            <Text style={styles.commentsSectionTitle}>
+              Bình luận ({comments.length})
+            </Text>
+          </View>
+
+          {loadingComments ? (
+            <ActivityIndicator size="small" color="#000" style={{ marginVertical: 20 }} />
+          ) : comments.length === 0 ? (
+            <View style={styles.emptyComments}>
+              <Ionicons name="chatbubble-outline" size={48} color="#d1d5db" />
+              <Text style={styles.emptyCommentsText}>Chưa có bình luận nào</Text>
+              <Text style={styles.emptyCommentsSubtext}>Hãy là người đầu tiên bình luận!</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={comments}
+              renderItem={renderComment}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+            />
+          )}
+        </View>
       </ScrollView>
+
+      {/* Comment Input */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 50 : 0}
+      >
+        <View style={styles.commentInputContainer}>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Viết bình luận..."
+            value={commentText}
+            onChangeText={setCommentText}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!commentText.trim() || submittingComment) && styles.sendButtonDisabled,
+            ]}
+            onPress={handlePostComment}
+            disabled={!commentText.trim() || submittingComment}
+          >
+            {submittingComment ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -379,5 +553,114 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_400Regular",
     color: "#000",
+  },
+  commentsSection: {
+    marginHorizontal: 24,
+    marginTop: 32,
+    marginBottom: 80,
+  },
+  commentsSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  commentsSectionTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: "#000",
+  },
+  emptyComments: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyCommentsText: {
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    color: "#6b7280",
+    marginTop: 12,
+  },
+  emptyCommentsSubtext: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#9ca3af",
+    marginTop: 4,
+  },
+  commentItem: {
+    flexDirection: "row",
+    marginBottom: 16,
+    gap: 12,
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  commentAuthor: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#000",
+  },
+  commentDate: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "#9ca3af",
+  },
+  commentText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#374151",
+    lineHeight: 20,
+  },
+  deleteCommentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
+  },
+  deleteCommentText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: "#dc2626",
+  },
+  commentInputContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    gap: 12,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButtonDisabled: {
+    backgroundColor: "#9ca3af",
   },
 });

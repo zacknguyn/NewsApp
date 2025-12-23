@@ -130,33 +130,34 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={categories}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categories}
-        contentContainerStyle={styles.categoriesContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.categoryButton,
-              selectedCategory === item.id && styles.categoryButtonActive,
-            ]}
-            onPress={() => setSelectedCategory(item.id)}
-          >
-            <Text
+      {/* Categories */}
+      <View style={styles.categoriesWrapper}>
+        <FlatList
+          data={categories}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesContent}
+          renderItem={({ item }) => (
+            <TouchableOpacity
               style={[
-                styles.categoryText,
-                selectedCategory === item.id && styles.categoryTextActive,
+                styles.categoryButton,
+                selectedCategory === item.id && styles.categoryButtonActive,
               ]}
+              onPress={() => setSelectedCategory(item.id)}
             >
-              {item.name}
-            </Text>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id}
-      />
-
+              <Text
+                style={[
+                  styles.categoryText,
+                  selectedCategory === item.id && styles.categoryTextActive,
+                ]}
+              >
+                {item.name}
+              </Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.id}
+        />
+      </View>
       {!searchQuery && (
         <View style={styles.trending}>
           <View style={styles.trendingHeader}>
@@ -241,6 +242,11 @@ const styles = StyleSheet.create({
     color: "#000",
   },
   categories: {
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  categoriesWrapper: {
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",

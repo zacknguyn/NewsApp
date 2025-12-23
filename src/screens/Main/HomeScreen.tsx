@@ -13,7 +13,7 @@ import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { Article } from "../../types";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -28,6 +28,13 @@ export default function HomeScreen() {
     { id: "sports", name: "Thể thao" },
     { id: "health", name: "Sức khỏe" },
   ];
+
+  // Reload articles when screen is focused (e.g., after adding from Admin)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadArticles();
+    }, [selectedCategory])
+  );
 
   useEffect(() => {
     loadArticles();
@@ -115,34 +122,34 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tin Tức VN</Text>
       </View>
-
-      <FlatList
-        data={categories}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categories}
-        contentContainerStyle={styles.categoriesContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.categoryButton,
-              selectedCategory === item.id && styles.categoryButtonActive,
-            ]}
-            onPress={() => setSelectedCategory(item.id)}
-          >
-            <Text
+      <View style={styles.categoriesWrapper}>
+        <FlatList
+          data={categories}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categories}
+          contentContainerStyle={styles.categoriesContent}
+          renderItem={({ item }) => (
+            <TouchableOpacity
               style={[
-                styles.categoryText,
-                selectedCategory === item.id && styles.categoryTextActive,
+                styles.categoryButton,
+                selectedCategory === item.id && styles.categoryButtonActive,
               ]}
+              onPress={() => setSelectedCategory(item.id)}
             >
-              {item.name}
-            </Text>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id}
-      />
-
+              <Text
+                style={[
+                  styles.categoryText,
+                  selectedCategory === item.id && styles.categoryTextActive,
+                ]}
+              >
+                {item.name}
+              </Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.id}
+        />
+      </View>
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#000" />
@@ -177,11 +184,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "PlayfairDisplay_700Bold",
     color: "#000",
+    textAlign: "center",
   },
   categories: {
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e5e5",
+  },
+  categoriesWrapper: {
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
   },
   categoriesContent: {
     paddingHorizontal: 16,

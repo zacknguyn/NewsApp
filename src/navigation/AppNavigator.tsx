@@ -18,11 +18,15 @@ import SearchScreen from "../screens/Main/SearchScreen";
 import ProfileScreen from "../screens/Main/ProfileScreen";
 import SettingsScreen from "../screens/Main/SettingsScreen";
 import SavedArticlesScreen from "../screens/Main/SavedArticlesScreen";
+import AdminScreen from "../screens/Main/AdminScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
+
 function MainTabNavigator() {
+  const { user } = useAuth();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -78,6 +82,18 @@ function MainTabNavigator() {
           ),
         }}
       />
+      {user?.role === "admin" && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminScreen}
+          options={{
+            tabBarLabel: "Quản lý",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
