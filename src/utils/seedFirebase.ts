@@ -1,5 +1,5 @@
 // src/utils/seedFirebase.ts
-import { collection, doc, setDoc, getDocs } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { Article } from "../types";
 
@@ -18,13 +18,13 @@ const mockArticles: Omit<Article, "id">[] = [
 
 <p>Các chuyên gia dự đoán rằng ContextAI sẽ được tích hợp vào nhiều sản phẩm thương mại trong vòng 12-18 tháng tới, mở ra kỷ nguyên mới cho tương tác giữa con người và máy móc.</p>`,
     author: "Trần Thị Mai",
-    category: "technology",
+    category: "thời sự",
     imageUrl:
       "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80",
     publishedAt: new Date("2024-01-20T10:00:00Z").toISOString(),
     readTime: 5,
-    tags: ["AI", "Công nghệ", "Nghiên cứu"],
-    views: 15420,
+    tags: ["Trí tuệ nhân tạo", "Công nghệ", "Nghiên cứu"],
+    views: 0,
   },
   {
     title: "Thị trường chứng khoán Việt Nam đạt mức cao kỷ lục",
@@ -37,13 +37,13 @@ const mockArticles: Omit<Article, "id">[] = [
 
 <p>Các chuyên gia dự báo xu hướng tích cực này có thể tiếp tục trong ngắn hạn, nhưng cũng khuyến cáo nhà đầu tư cần thận trọng và đa dạng hóa danh mục đầu tư.</p>`,
     author: "Phạm Đức Anh",
-    category: "business",
+    category: "kinh doanh",
     imageUrl:
       "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80",
     publishedAt: new Date("2024-01-20T09:30:00Z").toISOString(),
     readTime: 4,
     tags: ["Chứng khoán", "Kinh tế", "Đầu tư"],
-    views: 23150,
+    views: 0,
   },
   {
     title: "Đội tuyển Việt Nam giành chiến thắng ấn tượng",
@@ -56,13 +56,13 @@ const mockArticles: Omit<Article, "id">[] = [
 
 <p>Chiến thắng này giúp đội tuyển Việt Nam tăng 5 bậc trên bảng xếp hạng FIFA và tạo động lực lớn trước các trận đấu quan trọng sắp tới trong vòng loại World Cup.</p>`,
     author: "Hoàng Minh Tuấn",
-    category: "sports",
+    category: "thể thao",
     imageUrl:
       "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&q=80",
     publishedAt: new Date("2024-01-19T22:00:00Z").toISOString(),
     readTime: 3,
     tags: ["Bóng đá", "Đội tuyển", "Thể thao"],
-    views: 45230,
+    views: 0,
   },
   {
     title: "Khám phá mới về vũ trụ từ kính thiên văn James Webb",
@@ -75,13 +75,13 @@ const mockArticles: Omit<Article, "id">[] = [
 
 <p>Các thiên hà này có cấu trúc phức tạp hơn dự kiến, với các ngôi sao đã phát triển và các hệ thống hành tinh đang hình thành. Điều này đặt ra nhiều câu hỏi mới về tốc độ tiến hóa của vũ trụ.</p>`,
     author: "Đỗ Thị Lan",
-    category: "science",
+    category: "thế giới",
     imageUrl:
       "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=800&q=80",
     publishedAt: new Date("2024-01-19T15:00:00Z").toISOString(),
     readTime: 6,
     tags: ["Vũ trụ", "Khoa học", "Thiên văn"],
-    views: 18750,
+    views: 0,
   },
   {
     title: "Nghiên cứu mới về vaccine ung thư đầy hứa hẹn",
@@ -95,13 +95,13 @@ const mockArticles: Omit<Article, "id">[] = [
 
 <p>Nghiên cứu tập trung vào ung thư da, phổi và đại trực tràng. Các bệnh nhân tham gia thử nghiệm cho thấy giảm kích thước khối u đáng kể và ít tác dụng phụ hơn so với hóa trị liệu truyền thống.</p>`,
     author: "Lê Minh Khoa",
-    category: "health",
+    category: "lao động & đời sống",
     imageUrl:
       "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80",
     publishedAt: new Date("2024-01-19T11:00:00Z").toISOString(),
     readTime: 5,
     tags: ["Y tế", "Ung thư", "Vaccine"],
-    views: 31200,
+    views: 0,
   },
 ];
 
@@ -145,7 +145,7 @@ export const clearArticles = async (): Promise<boolean> => {
     console.log("🗑️ Clearing all articles...");
     const articlesSnapshot = await getDocs(collection(db, "articles"));
 
-    const deletePromises = articlesSnapshot.docs.map((doc) => doc.ref.delete());
+    const deletePromises = articlesSnapshot.docs.map((doc) => deleteDoc(doc.ref));
 
     await Promise.all(deletePromises);
     console.log("✅ All articles cleared!");

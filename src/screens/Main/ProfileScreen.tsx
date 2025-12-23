@@ -1,4 +1,3 @@
-// src/screens/Main/ProfileScreen.tsx
 import React from "react";
 import {
   View,
@@ -6,17 +5,49 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Modal,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../../contexts/AuthContext";
+import { Avatar } from "../../components/Avatar";
+import { RootStackParamList } from "../../types";
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
-  const navigation = useNavigation();
+  const { user, logout, updateUser } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const [isEditingName, setIsEditingName] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [updating, setUpdating] = React.useState(false);
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleUpdateName = async () => {
+    if (!user || !newName.trim()) return;
+    
+    try {
+      setUpdating(true);
+      await updateUser({ name: newName.trim() });
+      setIsEditingName(false);
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể cập nhật tên");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const openEditName = () => {
+    setNewName(user?.name || "");
+    setIsEditingName(true);
   };
 
   if (!user) return null;
@@ -29,13 +60,14 @@ export default function ProfileScreen() {
 
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Avatar name={user.name} uri={user.avatar} size={80} />
         </View>
-        <Text style={styles.name}>{user.name}</Text>
+        <View style={styles.nameContainer}>
+          <Text style={styles.name}>{user.name}</Text>
+          <TouchableOpacity onPress={openEditName} style={styles.editNameButton}>
+            <Ionicons name="pencil" size={16} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.email}>{user.email}</Text>
         {user.role === "admin" && (
           <View style={styles.badge}>
@@ -60,89 +92,48 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={isEditingName}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsEditingName(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Đổi tên hiển thị</Text>
+            <TextInput
+              style={styles.input}
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="Nhập tên mới"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsEditingName(false)}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleUpdateName()}
+              >
+                {updating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Lưu</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
-  );
-}
-
-// src/screens/Main/SavedArticlesScreen.tsx
-export function SavedArticlesScreen() {
-  const [articles, setArticles] = React.useState<Article[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const { user } = useAuth();
-  const navigation = useNavigation();
-
-  React.useEffect(() => {
-    loadSavedArticles();
-  }, []);
-
-  const loadSavedArticles = async () => {
-    if (!user) return;
-
-    try {
-      const userDoc = await getDoc(doc(db, "users", user.id));
-      const savedArticleIds = userDoc.data()?.savedArticles || [];
-
-      if (savedArticleIds.length > 0) {
-        const articlesPromises = savedArticleIds.map((id) =>
-          getDoc(doc(db, "articles", id))
-        );
-        const articlesDocs = await Promise.all(articlesPromises);
-        const articlesData = articlesDocs
-          .filter((doc) => doc.exists())
-          .map((doc) => ({ id: doc.id, ...doc.data() })) as Article[];
-        setArticles(articlesData);
-      }
-    } catch (error) {
-      console.error("Error loading saved articles:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Đã lưu</Text>
-      </View>
-
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#000" />
-        </View>
-      ) : articles.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="bookmark-outline" size={64} color="#d1d5db" />
-          <Text style={styles.emptyText}>Chưa có bài viết đã lưu</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={articles}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.articleCard}
-              onPress={() =>
-                navigation.navigate("ArticleDetail", { article: item })
-              }
-            >
-              <Image source={{ uri: item.imageUrl }} style={styles.image} />
-              <View style={styles.articleContent}>
-                <Text style={styles.category}>
-                  {item.category.toUpperCase()}
-                </Text>
-                <Text style={styles.title} numberOfLines={2}>
-                  {item.title}
-                </Text>
-                <Text style={styles.subtitle} numberOfLines={2}>
-                  {item.subtitle}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-        />
-      )}
-    </View>
   );
 }
 
@@ -178,19 +169,6 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginBottom: 16,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 32,
-    fontFamily: "PlayfairDisplay_700Bold",
-    color: "#fff",
   },
   name: {
     fontSize: 24,
@@ -236,57 +214,73 @@ const styles = StyleSheet.create({
     color: "#000",
     marginLeft: 12,
   },
-  loading: {
+  nameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  editNameButton: {
+    padding: 4,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+  },
+  modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 24,
   },
-  empty: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
   },
-  emptyText: {
-    marginTop: 16,
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: "#000",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  input: {
+    backgroundColor: "#f9fafb",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    padding: 12,
     fontSize: 16,
     fontFamily: "Inter_400Regular",
-    color: "#9ca3af",
+    marginBottom: 24,
   },
-  list: {
-    padding: 16,
-  },
-  articleCard: {
+  modalButtons: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 16,
-    overflow: "hidden",
+    gap: 12,
   },
-  image: {
-    width: 100,
-    height: 100,
-  },
-  articleContent: {
+  modalButton: {
     flex: 1,
-    padding: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  category: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    color: "#6b7280",
-    letterSpacing: 0.5,
-    marginBottom: 4,
+  cancelButton: {
+    backgroundColor: "#f3f4f6",
   },
-  title: {
+  cancelButtonText: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
-    color: "#000",
-    marginBottom: 4,
+    color: "#374151",
   },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: "#6b7280",
+  saveButton: {
+    backgroundColor: "#000",
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
   },
 });

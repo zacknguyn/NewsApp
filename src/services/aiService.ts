@@ -85,7 +85,7 @@ export const generateAISummary = async (
  */
 export const checkAIServiceAvailability = async (): Promise<boolean> => {
     try {
-        if (COLAB_API_URL === 'YOUR_NGROK_URL_HERE') {
+        if (!COLAB_API_URL || COLAB_API_URL.includes('your-ngrok-url')) {
             return false;
         }
 
@@ -111,22 +111,26 @@ export const getRecommendations = async (
     topK: number = 5
 ): Promise<string[]> => {
     try {
+        console.log(`AI Service: Requesting recommendations for category="${category}", topK=${topK}`);
+        
         // Validate input
-        if (!category || category.trim().length === 0) {
-            throw new Error('Category cannot be empty');
+        if (!category || typeof category !== 'string') {
+            throw new Error('Category must be a non-empty string');
         }
 
+        const url = `${COLAB_API_URL}/recommend`;
+        console.log(`AI Service: Fetching from URL: ${url}`);
+
         // Check if API URL is configured
-        if (COLAB_API_URL === 'YOUR_NGROK_URL_HERE') {
+        if (!COLAB_API_URL || typeof COLAB_API_URL !== 'string' || COLAB_API_URL.includes('your-ngrok-url')) {
             throw new Error('Please configure COLAB_API_URL with your ngrok URL');
         }
 
-        console.log(`Getting ${topK} recommendations for category: ${category}`);
-
         // Call Colab recommendation API
-        const response = await fetch(`${COLAB_API_URL}/recommend`, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -141,22 +145,22 @@ export const getRecommendations = async (
         }
 
         const data = await response.json();
+        console.log("AI Service: Received data:", data);
 
         if (!data.recommendations || !Array.isArray(data.recommendations)) {
-            throw new Error('Invalid response format from recommendation API');
+            throw new Error('Invalid response format: "recommendations" array not found');
         }
 
-        console.log(`Received ${data.recommendations.length} recommendations`);
         return data.recommendations;
 
     } catch (error: any) {
-        console.error('Error getting recommendations:', error);
+        console.error('AI Service: Error in getRecommendations:', error);
 
         // Provide user-friendly error messages
         if (error.message.includes('Network request failed')) {
             throw new Error('Network error - Check your internet connection');
         } else if (error.message.includes('configure COLAB_API_URL')) {
-            throw error; // Pass through configuration error
+            throw error;
         } else {
             throw new Error('Failed to get recommendations: ' + error.message);
         }

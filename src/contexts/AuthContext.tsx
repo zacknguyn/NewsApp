@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { View, Platform } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -9,7 +10,7 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { User } from "../types";
 import * as Google from "expo-auth-session/providers/google";
@@ -35,11 +36,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Google Sign-In configuration
   const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId:
-      "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
-    androidClientId: "YOUR_ANDROID_CLIENT_ID",
-    webClientId:
-      "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
+    // For Expo Go: Use the Web Client ID for all platforms. 
+    // For production: Use specific IDs for each platform.
+    iosClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
+    androidClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
+    webClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
   });
 
   // Handle Google Sign-In response
@@ -57,32 +58,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Listen to auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Safety timeout for web to prevent infinite loading
+    const timeout = Platform.OS === 'web' ? setTimeout(() => setLoading(false), 3000) : null;
+    let unsubscribeDoc: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (timeout) clearTimeout(timeout);
+      
+      // Clean up previous doc listener if it exists
+      if (unsubscribeDoc) {
+        unsubscribeDoc();
+        unsubscribeDoc = null;
+      }
+
       if (firebaseUser) {
-        // Fetch user data from Firestore
-        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUser(userDoc.data() as User);
-        } else {
-          // Create user document if it doesn't exist
-          const newUser: User = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: firebaseUser.displayName || "User",
-            role: "user",
-            favoriteTopics: [],
-            createdAt: new Date().toISOString(),
-          };
-          await setDoc(doc(db, "users", firebaseUser.uid), newUser);
-          setUser(newUser);
-        }
+        // Set up real-time listener for user document
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        
+        unsubscribeDoc = onSnapshot(userDocRef, async (snapshot) => {
+          if (snapshot.exists()) {
+            setUser(snapshot.data() as User);
+          } else {
+            // Create user document if it doesn't exist (e.g. first time login)
+            const newUser: User = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: firebaseUser.displayName || "User",
+              role: "user",
+              favoriteTopics: [],
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(userDocRef, newUser);
+            // The snapshot listener will fire again once the document is created
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("Error listening to user doc:", error);
+          setLoading(false);
+        });
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+      if (timeout) clearTimeout(timeout);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

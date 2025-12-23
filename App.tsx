@@ -29,9 +29,7 @@ export default function App() {
     Inter_700Bold,
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  console.log("Fonts loaded status:", fontsLoaded);
 
   return (
     <SafeAreaProvider>

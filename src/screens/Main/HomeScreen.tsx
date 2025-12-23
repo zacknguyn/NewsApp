@@ -8,25 +8,41 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
-import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  where,
+  getDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "../../../config/firebase";
-import { Article } from "../../types";
+import { Article, RootStackParamList } from "../../types";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { getRecommendations } from "../../services/aiService";
 
 export default function HomeScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [recommendedArticles, setRecommendedArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const categories = [
     { id: "all", name: "Tất cả" },
-    { id: "technology", name: "Công nghệ" },
-    { id: "business", name: "Kinh doanh" },
-    { id: "sports", name: "Thể thao" },
-    { id: "health", name: "Sức khỏe" },
+    { id: "thời sự", name: "Thời sự" },
+    { id: "bất động sản", name: "Bất động sản" },
+    { id: "kinh doanh", name: "Kinh doanh" },
+    { id: "xã hội", name: "Xã hội" },
+    { id: "thế giới", name: "Thế giới" },
+    { id: "thể thao", name: "Thể thao" },
+    { id: "pháp luật", name: "Pháp luật" },
+    { id: "lao động & đời sống", name: "Lao động & Đời sống" },
   ];
 
   // Reload articles when screen is focused (e.g., after adding from Admin)
@@ -38,7 +54,60 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadArticles();
+    loadRecommendations();
   }, [selectedCategory]);
+
+  const loadRecommendations = async () => {
+    try {
+      console.log("Loading recommendations for:", selectedCategory);
+      const recommendationQuery = selectedCategory === "all" ? "tin tức tổng hợp" : selectedCategory;
+      
+      const recommendations = await getRecommendations(recommendationQuery, 5);
+      console.log("Recommendations received:", recommendations);
+      
+      if (recommendations && recommendations.length > 0) {
+        // Check if the AI returned full objects (external articles) or just IDs
+        const isFullObject = typeof recommendations[0] === 'object' && recommendations[0] !== null;
+
+        if (isFullObject) {
+          // Map external articles to our Article format
+          const mappedArticles: Article[] = recommendations.map((item: any, index: number) => ({
+            id: item.url || `ext-${index}-${Date.now()}`,
+            title: item.title || "Tin tức đề xuất",
+            subtitle: item.summary || "",
+            content: `<p>${item.summary || ""}</p><br/><p>Xem chi tiết tại: <a href="${item.url}">${item.url}</a></p>`,
+            category: item.category || "Thông tin",
+            imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80", // Standard news placeholder
+            author: "Tin tổng hợp",
+            publishedAt: new Date().toISOString(),
+            readTime: 3,
+            tags: [item.category || "AI đề xuất"],
+            views: 0
+          }));
+          
+          setRecommendedArticles(mappedArticles);
+        } else {
+          // Assume these are Firestore IDs
+          const articlesPromises = (recommendations as string[]).map((id) =>
+            getDoc(doc(db, "articles", id))
+          );
+          const articlesDocs = await Promise.all(articlesPromises);
+          const articlesData = articlesDocs
+            .filter((docSnap) => docSnap.exists())
+            .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })) as Article[];
+          
+          setRecommendedArticles(articlesData);
+        }
+      } else if (articles.length > 0) {
+        setRecommendedArticles(articles.slice(0, 5));
+      }
+    } catch (error) {
+      console.log("Error loading recommendations:", error);
+      if (articles.length > 0) {
+        setRecommendedArticles(articles.slice(0, 5));
+      }
+    }
+  };
 
   const loadArticles = async () => {
     try {
@@ -71,11 +140,26 @@ export default function HomeScreen() {
     );
 
     if (diffHours < 1) return "Vừa xong";
-    if (diffHours < 24) return `${diffHours}h`;
+    if (diffHours < 24) return `${diffHours} giờ`;
     const days = Math.floor(diffHours / 24);
-    if (days < 7) return `${days}d`;
+    if (days < 7) return `${days} ngày`;
     return date.toLocaleDateString("vi-VN");
   };
+
+  const renderRecommendedItem = ({ item }: { item: Article }) => (
+    <TouchableOpacity
+      style={styles.recommendedCard}
+      onPress={() => navigation.navigate("ArticleDetail", { article: item })}
+    >
+      <Image source={{ uri: item.imageUrl }} style={styles.recommendedImage} />
+      <View style={styles.recommendedContent}>
+        <Text style={styles.category}>{item.category.toUpperCase()}</Text>
+        <Text style={styles.recommendedTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   const renderArticle = ({ item }: { item: Article }) => (
     <TouchableOpacity
@@ -101,7 +185,7 @@ export default function HomeScreen() {
           <Text style={styles.author}>{item.author}</Text>
           <View style={styles.stats}>
             <Ionicons name="time-outline" size={14} color="#666" />
-            <Text style={styles.statText}>{item.readTime}m</Text>
+            <Text style={styles.statText}>{item.readTime} phút</Text>
             <Ionicons
               name="eye-outline"
               size={14}
@@ -150,18 +234,47 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
         />
       </View>
+
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#000" />
         </View>
       ) : (
-        <FlatList
-          data={articles}
-          renderItem={renderArticle}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Recommended Section (AI) */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Gợi ý cho bạn</Text>
+            {recommendedArticles.length > 0 && (
+              <Ionicons name="sparkles" size={16} color="#000" />
+            )}
+          </View>
+
+          {recommendedArticles.length > 0 ? (
+            <FlatList
+              data={recommendedArticles}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recommendedList}
+              renderItem={renderRecommendedItem}
+              keyExtractor={(item) => `rec-${item.id}`}
+            />
+          ) : (
+            <View style={styles.emptyRecommended}>
+              <Text style={styles.emptyText}>Chưa có gợi ý phù hợp</Text>
+            </View>
+          )}
+
+          {/* Latest News Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Tin mới nhất</Text>
+          </View>
+
+          <View style={styles.list}>
+            {articles.map((item) => (
+              <View key={item.id}>{renderArticle({ item })}</View>
+            ))}
+          </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -179,6 +292,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 16,
+    zIndex: 10,
   },
   headerTitle: {
     fontSize: 24,
@@ -195,6 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
+    zIndex: 10,
   },
   categoriesContent: {
     paddingHorizontal: 16,
@@ -223,6 +338,65 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: "PlayfairDisplay_700Bold",
+    color: "#000",
+  },
+  recommendedList: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  recommendedCard: {
+    width: 280,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginRight: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  recommendedImage: {
+    width: "100%",
+    height: 160,
+  },
+  recommendedContent: {
+    padding: 12,
+  },
+  recommendedTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    fontFamily: "PlayfairDisplay_700Bold",
+    color: "#000",
+    lineHeight: 22,
+  },
+  emptyRecommended: {
+    marginHorizontal: 16,
+    padding: 24,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderStyle: 'dashed',
+  },
+  emptyText: {
+    fontFamily: "Inter_400Regular",
+    color: "#9ca3af",
+    fontSize: 14,
   },
   list: {
     padding: 16,

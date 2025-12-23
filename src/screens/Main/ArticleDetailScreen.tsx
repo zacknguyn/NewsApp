@@ -17,7 +17,8 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   doc,
@@ -25,10 +26,12 @@ import {
   arrayUnion,
   arrayRemove,
   getDoc,
+  increment,
 } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import RenderHtml from "react-native-render-html";
-import { Comment } from "../../types";
+import { Comment, RootStackParamList } from "../../types";
+import { Avatar } from "../../components/Avatar";
 import {
   addComment,
   subscribeToComments,
@@ -40,7 +43,7 @@ const { width } = Dimensions.get("window");
 
 export default function ArticleDetailScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
+  const route = useRoute<RouteProp<RootStackParamList, "ArticleDetail">>();
   const { article } = route.params;
   const { user } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
@@ -53,7 +56,10 @@ export default function ArticleDetailScreen() {
   const [generatingAI, setGeneratingAI] = useState(false);
 
   useEffect(() => {
+
     checkIfSaved();
+    incrementViewCount();
+
 
     // Subscribe to real-time comments
     const unsubscribe = subscribeToComments(article.id, (newComments) => {
@@ -69,6 +75,34 @@ export default function ArticleDetailScreen() {
     const userDoc = await getDoc(doc(db, "users", user.id));
     const savedArticles = userDoc.data()?.savedArticles || [];
     setIsSaved(savedArticles.includes(article.id));
+  };
+
+  const incrementViewCount = async () => {
+    try {
+      const userSuffix = user ? user.id : "guest";
+      const storageKey = `viewed_article_${article.id}_${userSuffix}`;
+      const lastViewed = await AsyncStorage.getItem(storageKey);
+      const now = Date.now();
+      const COOLDOWN = 30 * 60 * 1000; // 30 minutes for testing sanity
+
+      if (lastViewed) {
+        const lastViewedTime = parseInt(lastViewed);
+        if (now - lastViewedTime < COOLDOWN) {
+          console.log("View throttled for article:", article.id);
+          return;
+        }
+      }
+
+      console.log("Incrementing view for article:", article.id);
+      const articleRef = doc(db, "articles", article.id);
+      await updateDoc(articleRef, {
+        views: increment(1)
+      });
+
+      await AsyncStorage.setItem(storageKey, now.toString());
+    } catch (error) {
+      console.error("Error incrementing view count:", error);
+    }
   };
 
   const handleSave = async () => {
@@ -104,11 +138,12 @@ export default function ArticleDetailScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("vi-VN", {
+    const formatted = date.toLocaleDateString("vi-VN", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   };
 
   const formatCommentDate = (dateString: string) => {
@@ -182,7 +217,7 @@ export default function ArticleDetailScreen() {
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentItem}>
       <View style={styles.commentAvatar}>
-        <Ionicons name="person-circle" size={40} color="#9ca3af" />
+        <Avatar name={item.userName} uri={item.userAvatar} size={40} />
       </View>
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
@@ -255,18 +290,21 @@ export default function ArticleDetailScreen() {
         <Text style={styles.subtitle}>{article.subtitle}</Text>
 
         <View style={styles.meta}>
-          <Text style={styles.author}>{article.author}</Text>
-          <Text style={styles.metaDivider}>•</Text>
-          <Text style={styles.date}>{formatDate(article.publishedAt)}</Text>
-          <Text style={styles.metaDivider}>•</Text>
-          <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={14} color="#6b7280" />
-            <Text style={styles.metaText}>{article.readTime}m</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.author}>{article.author}</Text>
           </View>
-          <Text style={styles.metaDivider}>•</Text>
-          <View style={styles.metaItem}>
-            <Ionicons name="eye-outline" size={14} color="#6b7280" />
-            <Text style={styles.metaText}>{article.views}</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.date}>{formatDate(article.publishedAt)}</Text>
+            <Text style={styles.metaDivider}>•</Text>
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={14} color="#6b7280" />
+              <Text style={styles.metaText}>{article.readTime} phút</Text>
+            </View>
+            <Text style={styles.metaDivider}>•</Text>
+            <View style={styles.metaItem}>
+              <Ionicons name="eye-outline" size={14} color="#6b7280" />
+              <Text style={styles.metaText}>{article.views}</Text>
+            </View>
           </View>
         </View>
 
@@ -492,15 +530,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
   },
   meta: {
-    flexDirection: "row",
-    alignItems: "center",
     marginTop: 16,
     marginHorizontal: 24,
     marginBottom: 24,
+    gap: 8,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 0,
   },
   author: {
     fontSize: 14,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Inter_600SemiBold",
     color: "#000",
   },
   metaDivider: {
@@ -516,6 +559,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    minWidth: 60,
   },
   metaText: {
     fontSize: 12,

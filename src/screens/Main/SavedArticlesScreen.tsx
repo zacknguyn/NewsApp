@@ -10,21 +10,24 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { useAuth } from "../../contexts/AuthContext";
-import { Article } from "../../types";
+import { Article, RootStackParamList } from "../../types";
 
 export default function SavedArticlesScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  useEffect(() => {
-    loadSavedArticles();
-  }, [user]);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSavedArticles();
+    }, [user])
+  );
 
   const loadSavedArticles = async () => {
     if (!user) {
@@ -62,9 +65,9 @@ export default function SavedArticlesScreen() {
     );
 
     if (diffHours < 1) return "Vừa xong";
-    if (diffHours < 24) return `${diffHours}h`;
+    if (diffHours < 24) return `${diffHours} giờ`;
     const days = Math.floor(diffHours / 24);
-    if (days < 7) return `${days}d`;
+    if (days < 7) return `${days} ngày`;
     return date.toLocaleDateString("vi-VN");
   };
 
@@ -92,7 +95,7 @@ export default function SavedArticlesScreen() {
           <Text style={styles.author}>{item.author}</Text>
           <View style={styles.stats}>
             <Ionicons name="time-outline" size={14} color="#666" />
-            <Text style={styles.statText}>{item.readTime}m</Text>
+            <Text style={styles.statText}>{item.readTime} phút</Text>
             <Ionicons
               name="eye-outline"
               size={14}

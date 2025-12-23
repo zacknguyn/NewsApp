@@ -24,7 +24,7 @@ import {
 } from "../../services/articleService";
 import { useAuth } from "../../contexts/AuthContext";
 
-type CategoryType = "technology" | "business" | "sports" | "health" | "science";
+type CategoryType = "thời sự" | "bất động sản" | "kinh doanh" | "xã hội" | "thế giới" | "thể thao" | "pháp luật" | "lao động & đời sống";
 
 export default function AdminScreen() {
     const { user } = useAuth();
@@ -38,18 +38,21 @@ export default function AdminScreen() {
     const [subtitle, setSubtitle] = useState("");
     const [content, setContent] = useState("");
     const [author, setAuthor] = useState("");
-    const [category, setCategory] = useState<CategoryType>("technology");
+    const [category, setCategory] = useState<CategoryType>("thời sự");
     const [imageUrl, setImageUrl] = useState("");
     const [readTime, setReadTime] = useState("5");
     const [tags, setTags] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
     const categories: { id: CategoryType; name: string }[] = [
-        { id: "technology", name: "Công nghệ" },
-        { id: "business", name: "Kinh doanh" },
-        { id: "sports", name: "Thể thao" },
-        { id: "health", name: "Sức khỏe" },
-        { id: "science", name: "Khoa học" },
+        { id: "thời sự", name: "Thời sự" },
+        { id: "bất động sản", name: "Bất động sản" },
+        { id: "kinh doanh", name: "Kinh doanh" },
+        { id: "xã hội", name: "Xã hội" },
+        { id: "thế giới", name: "Thế giới" },
+        { id: "thể thao", name: "Thể thao" },
+        { id: "pháp luật", name: "Pháp luật" },
+        { id: "lao động & đời sống", name: "Lao động & Đời sống" },
     ];
 
     useEffect(() => {
@@ -73,7 +76,7 @@ export default function AdminScreen() {
         setSubtitle("");
         setContent("");
         setAuthor("");
-        setCategory("technology");
+        setCategory("thời sự");
         setImageUrl("");
         setReadTime("5");
         setTags("");
@@ -183,18 +186,22 @@ export default function AdminScreen() {
         </View>
     );
 
-    // Check if user is admin
-    if (user?.role !== "admin") {
+    // Check if user is admin and on Web
+    if (user?.role !== "admin" || Platform.OS !== "web") {
         return (
             <View style={styles.container}>
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Quản lý bài viết</Text>
                 </View>
                 <View style={styles.unauthorizedContainer}>
-                    <Ionicons name="lock-closed" size={64} color="#9ca3af" />
-                    <Text style={styles.unauthorizedTitle}>Không có quyền truy cập</Text>
+                    <Ionicons name={Platform.OS !== "web" ? "browsers-outline" : "lock-closed"} size={64} color="#9ca3af" />
+                    <Text style={styles.unauthorizedTitle}>
+                        {Platform.OS !== "web" ? "Yêu cầu phiên bản Web" : "Không có quyền truy cập"}
+                    </Text>
                     <Text style={styles.unauthorizedText}>
-                        Bạn cần có quyền admin để truy cập trang này
+                        {Platform.OS !== "web" 
+                            ? "Tính năng quản lý bài viết chỉ khả dụng trên trình duyệt máy tính." 
+                            : "Bạn cần có quyền admin để truy cập trang này"}
                     </Text>
                 </View>
             </View>
@@ -229,6 +236,13 @@ export default function AdminScreen() {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.list}
                     showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="document-text-outline" size={64} color="#e5e7eb" />
+                            <Text style={styles.emptyText}>Chưa có bài viết nào</Text>
+                            <Text style={styles.emptySubtext}>Hãy nhấn nút + để bắt đầu viết tin mới</Text>
+                        </View>
+                    }
                 />
             )}
 
@@ -236,7 +250,7 @@ export default function AdminScreen() {
             <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    behavior="padding"
                     keyboardVerticalOffset={0}
                 >
                     <View style={styles.modalContainer}>
@@ -523,5 +537,22 @@ const styles = StyleSheet.create({
     },
     formFooter: {
         height: 40,
+    },
+    emptyContainer: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 100,
+    },
+    emptyText: {
+        fontSize: 18,
+        fontFamily: "Inter_600SemiBold",
+        color: "#9ca3af",
+        marginTop: 16,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        fontFamily: "Inter_400Regular",
+        color: "#9ca3af",
+        marginTop: 8,
     },
 });

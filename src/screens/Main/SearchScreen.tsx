@@ -11,9 +11,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../../config/firebase";
-import { Article } from "../../types";
+import { Article, RootStackParamList } from "../../types";
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,15 +22,18 @@ export default function SearchScreen() {
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const categories = [
     { id: "all", name: "Tất cả" },
-    { id: "technology", name: "Công nghệ" },
-    { id: "business", name: "Kinh doanh" },
-    { id: "sports", name: "Thể thao" },
-    { id: "health", name: "Sức khỏe" },
-    { id: "science", name: "Khoa học" },
+    { id: "thời sự", name: "Thời sự" },
+    { id: "bất động sản", name: "Bất động sản" },
+    { id: "kinh doanh", name: "Kinh doanh" },
+    { id: "xã hội", name: "Xã hội" },
+    { id: "thế giới", name: "Thế giới" },
+    { id: "thể thao", name: "Thể thao" },
+    { id: "pháp luật", name: "Pháp luật" },
+    { id: "lao động & đời sống", name: "Lao động & Đời sống" },
   ];
 
   const trendingSearches = [
