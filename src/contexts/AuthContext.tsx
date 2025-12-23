@@ -15,6 +15,7 @@ import { auth, db } from "../../config/firebase";
 import { User } from "../types";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-auth-session";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -41,18 +42,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     iosClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
     androidClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
     webClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
+    scopes: ["openid", "profile", "email"],
+    // Force id_token response for Firebase compatibility
+    responseType: "id_token",
+    // Hardcode the native redirect URI to v9 to prevent fallback to exp://
+    redirectUri: Platform.OS === 'web' 
+      ? makeRedirectUri() 
+      : 'https://auth.expo.io/@zacknguyn/NewsApp',
   });
+
+  // Log the redirect URI to help with debugging
+  useEffect(() => {
+    if (request) {
+      console.log("-----------------------------------------");
+      console.log("AUTH CONFIG v11:"); 
+      console.log("Platform:", Platform.OS);
+      console.log("Redirect URI:", request.redirectUri);
+      console.log("Response Type:", request.responseType);
+      console.log("-----------------------------------------");
+    }
+  }, [request]);
 
   // Handle Google Sign-In response
   useEffect(() => {
+    console.log("Auth Response Type:", response?.type);
     if (response?.type === "success") {
-      const { authentication } = response;
-      if (authentication?.idToken) {
-        const credential = GoogleAuthProvider.credential(
-          authentication.idToken
-        );
-        signInWithCredential(auth, credential);
+      const { authentication, params } = response;
+      console.log("Full Auth Response Params:", params);
+      
+      // On some platforms, the idToken might be in authentication or in params
+      const idToken = authentication?.idToken || params?.id_token;
+      
+      console.log("Auth successful, tokens received:", {
+        idToken: idToken ? "YES" : "NO",
+        accessToken: authentication?.accessToken ? "YES" : "NO",
+      });
+
+      if (idToken) {
+        const credential = GoogleAuthProvider.credential(idToken);
+        signInWithCredential(auth, credential).catch(err => {
+          console.error("Firebase Sign-In Error:", err);
+        });
+      } else {
+        console.warn("No idToken found in response. Google Sign-In with Firebase requires idToken.");
       }
+    } else if (response?.type === "error") {
+      console.error("Google Auth Response Error:", response.error);
     }
   }, [response]);
 
@@ -140,8 +175,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = async () => {
     try {
-      await promptAsync();
+      console.log("Starting Google Login (v11)...");
+      
+      const result = await promptAsync({ 
+        //@ts-ignore
+        useProxy: Platform.OS !== 'web',
+        scheme: "newsapp",
+      });
+      
+      console.log("Prompt Result (v11):", result.type);
+      if (result.type === "success") {
+        console.log("Success Result Keys:", Object.keys(result));
+      } else if (result.type === "error") {
+        console.error("Auth Session Detailed Error:", result.error);
+        console.error("Full Result:", JSON.stringify(result));
+      }
     } catch (error: any) {
+      console.error("loginWithGoogle Exception (v11):", error);
       throw new Error(error.message);
     }
   };

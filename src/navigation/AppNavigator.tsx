@@ -32,7 +32,7 @@ function MainTabNavigator() {
 
   return (
     <Tab.Navigator
-      initialRouteName={isWeb && isAdmin ? "Admin" : "Home"}
+      initialRouteName={isWeb ? (isAdmin ? "Admin" : "Profile") : "Home"}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#000",
@@ -46,45 +46,33 @@ function MainTabNavigator() {
         },
       }}
     >
-      {/* WEB VERSION: Just Admin and Profile */}
-      {isWeb ? (
+      {/* TABS (Home is now available on both) */}
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: "Trang chủ",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {isWeb && isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminScreen}
+          options={{
+            tabBarLabel: "Quản lý",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+
+      {!isWeb && (
         <>
-          {isAdmin && (
-            <Tab.Screen
-              name="Admin"
-              component={AdminScreen}
-              options={{
-                tabBarLabel: "Quản lý",
-                tabBarIcon: ({ color, size }) => (
-                  <Ionicons name="settings" size={size} color={color} />
-                ),
-              }}
-            />
-          )}
-          <Tab.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{
-              tabBarLabel: "Hồ sơ",
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="person" size={size} color={color} />
-              ),
-            }}
-          />
-        </>
-      ) : (
-        /* MOBILE VERSION: Viewing experience */
-        <>
-          <Tab.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{
-              tabBarLabel: "Trang chủ",
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="home" size={size} color={color} />
-              ),
-            }}
-          />
           <Tab.Screen
             name="Search"
             component={SearchScreen}
@@ -105,18 +93,19 @@ function MainTabNavigator() {
               ),
             }}
           />
-          <Tab.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{
-              tabBarLabel: "Hồ sơ",
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="person" size={size} color={color} />
-              ),
-            }}
-          />
         </>
       )}
+
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Hồ sơ",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
