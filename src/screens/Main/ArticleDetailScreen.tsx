@@ -34,6 +34,7 @@ import {
   subscribeToComments,
   deleteComment,
 } from "../../services/commentService";
+import { generateAISummary } from "../../services/aiService";
 
 const { width } = Dimensions.get("window");
 
@@ -48,6 +49,8 @@ export default function ArticleDetailScreen() {
   const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [aiSummary, setAiSummary] = useState(article.aiSummary || "");
+  const [generatingAI, setGeneratingAI] = useState(false);
 
   useEffect(() => {
     checkIfSaved();
@@ -200,6 +203,24 @@ export default function ArticleDetailScreen() {
     </View>
   );
 
+  const handleGenerateAISummary = async () => {
+    try {
+      setGeneratingAI(true);
+      const summary = await generateAISummary(article.content);
+      setAiSummary(summary);
+
+      // Optionally save to Firebase
+      // await updateArticle(article.id, { aiSummary: summary });
+    } catch (error: any) {
+      Alert.alert(
+        "Lỗi tạo tóm tắt",
+        error.message || "Không thể tạo tóm tắt AI. Vui lòng thử lại."
+      );
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -276,7 +297,34 @@ export default function ArticleDetailScreen() {
 
           {showSummary && (
             <View style={styles.summaryContent}>
-              <Text style={styles.summaryText}>{article.aiSummary}</Text>
+              {aiSummary ? (
+                <Text style={styles.summaryText}>{aiSummary}</Text>
+              ) : (
+                <View style={styles.noSummary}>
+                  <Ionicons name="document-text-outline" size={32} color="#9ca3af" />
+                  <Text style={styles.noSummaryText}>Chưa có tóm tắt AI</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.generateButton, generatingAI && styles.generateButtonDisabled]}
+                onPress={handleGenerateAISummary}
+                disabled={generatingAI}
+              >
+                {generatingAI ? (
+                  <>
+                    <ActivityIndicator size="small" color="#fff" />
+                    <Text style={styles.generateButtonText}>Đang tạo...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={16} color="#fff" />
+                    <Text style={styles.generateButtonText}>
+                      {aiSummary ? "Tạo lại tóm tắt" : "Tạo tóm tắt AI"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -528,6 +576,35 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: "#374151",
     lineHeight: 22,
+  },
+  noSummary: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  noSummaryText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#9ca3af",
+    marginTop: 8,
+  },
+  generateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#000",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  generateButtonDisabled: {
+    backgroundColor: "#9ca3af",
+  },
+  generateButtonText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
   },
   content: {
     marginTop: 24,

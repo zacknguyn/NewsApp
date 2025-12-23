@@ -17,8 +17,6 @@ const mockArticles: Omit<Article, "id">[] = [
 <p>Ứng dụng của công nghệ này rất rộng, từ cải thiện trợ lý ảo, nâng cao chất lượng dịch thuật máy, đến hỗ trợ chẩn đoán y tế và phân tích dữ liệu phức tạp.</p>
 
 <p>Các chuyên gia dự đoán rằng ContextAI sẽ được tích hợp vào nhiều sản phẩm thương mại trong vòng 12-18 tháng tới, mở ra kỷ nguyên mới cho tương tác giữa con người và máy móc.</p>`,
-    aiSummary:
-      "Các nhà khoa học phát triển mô hình AI mới có tên ContextAI, có khả năng hiểu ngữ cảnh phức tạp với độ chính xác cao. Công nghệ này sử dụng kiến trúc transformer tiên tiến và có thể ứng dụng trong nhiều lĩnh vực từ trợ lý ảo đến y tế.",
     author: "Trần Thị Mai",
     category: "technology",
     imageUrl:
@@ -38,8 +36,6 @@ const mockArticles: Omit<Article, "id">[] = [
 <p>"Đây là tín hiệu tích cực cho nền kinh tế Việt Nam," ông Lê Văn Hùng, Giám đốc Phân tích tại Công ty Chứng khoán ABC, nhận định. "Nhà đầu tư nước ngoài đang tăng cường đầu tư vào thị trường Việt Nam nhờ triển vọng tăng trưởng ổn định."</p>
 
 <p>Các chuyên gia dự báo xu hướng tích cực này có thể tiếp tục trong ngắn hạn, nhưng cũng khuyến cáo nhà đầu tư cần thận trọng và đa dạng hóa danh mục đầu tư.</p>`,
-    aiSummary:
-      "VN-Index vượt mốc 1,300 điểm lần đầu tiên, được thúc đẩy bởi dòng vốn ngoại và triển vọng kinh tế tích cực. Thanh khoản đạt hơn 25,000 tỷ đồng với sự tăng điểm đồng loạt ở các nhóm ngành.",
     author: "Phạm Đức Anh",
     category: "business",
     imageUrl:
@@ -59,8 +55,6 @@ const mockArticles: Omit<Article, "id">[] = [
 <p>"Tôi rất tự hào về các cầu thủ," Huấn luyện viên trưởng chia sẻ sau trận. "Họ đã thể hiện tinh thần chiến đấu cao và thực hiện đúng chiến thuật đã được chuẩn bị."</p>
 
 <p>Chiến thắng này giúp đội tuyển Việt Nam tăng 5 bậc trên bảng xếp hạng FIFA và tạo động lực lớn trước các trận đấu quan trọng sắp tới trong vòng loại World Cup.</p>`,
-    aiSummary:
-      "Đội tuyển Việt Nam thắng 3-0 trong trận giao hữu quốc tế với màn trình diễn ấn tượng của các cầu thủ trẻ. Chiến thắng giúp đội tuyển tăng 5 bậc trên bảng xếp hạng FIFA.",
     author: "Hoàng Minh Tuấn",
     category: "sports",
     imageUrl:
@@ -80,8 +74,6 @@ const mockArticles: Omit<Article, "id">[] = [
 <p>"Đây là phát hiện đột phá," Giáo sư Sarah Johnson, nhà thiên văn học hàng đầu, cho biết. "Nó buộc chúng ta phải xem xét lại hiểu biết về quá trình hình thành thiên hà và vũ trụ sơ khai."</p>
 
 <p>Các thiên hà này có cấu trúc phức tạp hơn dự kiến, với các ngôi sao đã phát triển và các hệ thống hành tinh đang hình thành. Điều này đặt ra nhiều câu hỏi mới về tốc độ tiến hóa của vũ trụ.</p>`,
-    aiSummary:
-      "Kính thiên văn James Webb phát hiện các thiên hà hình thành sớm hơn dự đoán 200 triệu năm, chỉ 200 triệu năm sau Big Bang. Phát hiện này thay đổi hiểu biết về quá trình hình thành thiên hà.",
     author: "Đỗ Thị Lan",
     category: "science",
     imageUrl:
@@ -102,8 +94,6 @@ const mockArticles: Omit<Article, "id">[] = [
 <p>"Đây là bước tiến quan trọng trong điều trị ung thư," Tiến sĩ Nguyễn Thị Hương, trưởng nhóm nghiên cứu, giải thích. "Vaccine được cá nhân hóa dựa trên đặc điểm di truyền của khối u, giúp tăng hiệu quả điều trị."</p>
 
 <p>Nghiên cứu tập trung vào ung thư da, phổi và đại trực tràng. Các bệnh nhân tham gia thử nghiệm cho thấy giảm kích thước khối u đáng kể và ít tác dụng phụ hơn so với hóa trị liệu truyền thống.</p>`,
-    aiSummary:
-      "Vaccine ung thư sử dụng công nghệ mRNA cho kết quả tích cực với 72% bệnh nhân đáp ứng tốt. Vaccine được cá nhân hóa dựa trên đặc điểm di truyền của khối u, giúp tăng hiệu quả điều trị.",
     author: "Lê Minh Khoa",
     category: "health",
     imageUrl:

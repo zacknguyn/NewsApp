@@ -14,7 +14,7 @@ export interface Article {
   title: string;
   subtitle: string;
   content: string;
-  aiSummary: string;
+  aiSummary?: string; // Optional - generated on-demand
   author: string;
   authorAvatar?: string;
   category: string;
