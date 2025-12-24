@@ -31,7 +31,8 @@ export default function HomeScreen() {
   const [recommendedArticles, setRecommendedArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const categories = [
     { id: "all", name: "Tất cả" },
@@ -43,6 +44,7 @@ export default function HomeScreen() {
     { id: "thể thao", name: "Thể thao" },
     { id: "pháp luật", name: "Pháp luật" },
     { id: "lao động & đời sống", name: "Lao động & Đời sống" },
+    { id: "giáo dục", name: "Giáo dục" },
   ];
 
   // Reload articles when screen is focused (e.g., after adding from Admin)
@@ -60,31 +62,36 @@ export default function HomeScreen() {
   const loadRecommendations = async () => {
     try {
       console.log("Loading recommendations for:", selectedCategory);
-      const recommendationQuery = selectedCategory === "all" ? "tin tức tổng hợp" : selectedCategory;
-      
+      const recommendationQuery =
+        selectedCategory === "all" ? "tin tức tổng hợp" : selectedCategory;
+
       const recommendations = await getRecommendations(recommendationQuery, 5);
       console.log("Recommendations received:", recommendations);
-      
+
       if (recommendations && recommendations.length > 0) {
         // Check if the AI returned full objects (external articles) or just IDs
-        const isFullObject = typeof recommendations[0] === 'object' && recommendations[0] !== null;
+        const isFullObject =
+          typeof recommendations[0] === "object" && recommendations[0] !== null;
 
         if (isFullObject) {
           // Map external articles to our Article format
-          const mappedArticles: Article[] = recommendations.map((item: any, index: number) => ({
-            id: item.url || `ext-${index}-${Date.now()}`,
-            title: item.title || "Tin tức đề xuất",
-            subtitle: item.summary || "",
-            content: `<p>${item.summary || ""}</p><br/><p>Xem chi tiết tại: <a href="${item.url}">${item.url}</a></p>`,
-            category: item.category || "Thông tin",
-            imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80", // Standard news placeholder
-            author: "Tin tổng hợp",
-            publishedAt: new Date().toISOString(),
-            readTime: 3,
-            tags: [item.category || "AI đề xuất"],
-            views: 0
-          }));
-          
+          const mappedArticles: Article[] = recommendations.map(
+            (item: any, index: number) => ({
+              id: item.url || `ext-${index}-${Date.now()}`,
+              title: item.title || "Tin tức đề xuất",
+              subtitle: item.summary || "",
+              content: `<p>${item.summary || ""}</p><br/><p>Xem chi tiết tại: <a href="${item.url}">${item.url}</a></p>`,
+              category: item.category || "Thông tin",
+              imageUrl:
+                "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80", // Standard news placeholder
+              author: "Tin tổng hợp",
+              publishedAt: new Date().toISOString(),
+              readTime: 3,
+              tags: [item.category || "AI đề xuất"],
+              views: 0,
+            })
+          );
+
           setRecommendedArticles(mappedArticles);
         } else {
           // Assume these are Firestore IDs
@@ -94,8 +101,11 @@ export default function HomeScreen() {
           const articlesDocs = await Promise.all(articlesPromises);
           const articlesData = articlesDocs
             .filter((docSnap) => docSnap.exists())
-            .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })) as Article[];
-          
+            .map((docSnap) => ({
+              id: docSnap.id,
+              ...docSnap.data(),
+            })) as Article[];
+
           setRecommendedArticles(articlesData);
         }
       } else if (articles.length > 0) {
@@ -391,7 +401,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
   },
   emptyText: {
     fontFamily: "Inter_400Regular",

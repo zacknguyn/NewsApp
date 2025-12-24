@@ -22,7 +22,8 @@ export default function SearchScreen() {
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const categories = [
     { id: "all", name: "Tất cả" },
@@ -34,6 +35,7 @@ export default function SearchScreen() {
     { id: "thể thao", name: "Thể thao" },
     { id: "pháp luật", name: "Pháp luật" },
     { id: "lao động & đời sống", name: "Lao động & Đời sống" },
+    { id: "giáo dục", name: "Giáo dục" },
   ];
 
   const trendingSearches = [

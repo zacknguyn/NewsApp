@@ -28,6 +28,25 @@ export default function SettingsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tài khoản</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate("ChangePassword" as never)}
+            >
+              <Ionicons name="key-outline" size={24} color="#000" />
+              <View style={styles.menuContent}>
+                <Text style={styles.menuText}>Đổi mật khẩu</Text>
+                <Text style={styles.menuSubtext}>
+                  Thay đổi mật khẩu đăng nhập
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ngôn ngữ</Text>
           <View style={styles.card}>
             <View style={styles.menuItem}>

@@ -20,10 +20,10 @@ import ProfileScreen from "../screens/Main/ProfileScreen";
 import SettingsScreen from "../screens/Main/SettingsScreen";
 import SavedArticlesScreen from "../screens/Main/SavedArticlesScreen";
 import AdminScreen from "../screens/Main/AdminScreen";
+import ChangePasswordScreen from "../screens/Main/ChangePasswordScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
-
 
 function MainTabNavigator() {
   const { user } = useAuth();
@@ -58,7 +58,7 @@ function MainTabNavigator() {
         }}
       />
 
-      {isWeb && isAdmin && (
+      {isAdmin && (
         <Tab.Screen
           name="Admin"
           component={AdminScreen}
@@ -124,7 +124,7 @@ export default function AppNavigator() {
 
   console.log("AppNavigator State:", { user: !!user, loading });
 
-  if (loading || (showSplash && Platform.OS !== 'web')) {
+  if (loading || (showSplash && Platform.OS !== "web")) {
     return <SplashScreen />;
   }
 
@@ -143,6 +143,10 @@ export default function AppNavigator() {
               }}
             />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePasswordScreen}
+            />
           </>
         ) : (
           <>

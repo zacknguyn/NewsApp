@@ -2,6 +2,7 @@
   "expo": {
     "name": "NewsApp",
     "slug": "NewsApp",
+    "owner": "zacknguyn",
     "scheme": "newsapp",
     "version": "1.0.0",
     "orientation": "portrait",

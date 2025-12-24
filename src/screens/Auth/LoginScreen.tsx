@@ -43,8 +43,14 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await loginWithGoogle();
+      // Success is handled by onAuthStateChanged in AuthContext
     } catch (error: any) {
-      Alert.alert("Đăng nhập thất bại", error.message);
+      console.error("Google login error in LoginScreen:", error);
+      Alert.alert(
+        "Đăng nhập thất bại",
+        error.message ||
+          "Something went wrong trying to finish signing in. Please try again."
+      );
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ export interface User {
   avatar?: string;
   role: "user" | "admin";
   favoriteTopics: string[];
+  savedArticles: string[];
   createdAt: string;
 }
 

@@ -1,21 +1,23 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { View, Platform } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser,
   GoogleAuthProvider,
   signInWithCredential,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { User } from "../types";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import { makeRedirectUri } from "expo-auth-session";
+import * as AuthSession from "expo-auth-session";
+import { Platform } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,6 +29,10 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,114 +41,133 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Google Sign-In configuration
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    // For Expo Go: Use the Web Client ID for all platforms. 
-    // For production: Use specific IDs for each platform.
-    iosClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
-    androidClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
-    webClientId: "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
-    scopes: ["openid", "profile", "email"],
-    // Force id_token response for Firebase compatibility
-    responseType: "id_token",
-    // Hardcode the native redirect URI to v9 to prevent fallback to exp://
-    redirectUri: Platform.OS === 'web' 
-      ? makeRedirectUri() 
-      : 'https://auth.expo.io/@zacknguyn/NewsApp',
+  // Use different redirect URIs for web vs mobile
+  const redirectUri =
+    Platform.OS === "web"
+      ? undefined // Let expo-auth-session handle it for web
+      : "https://auth.expo.io/@zacknguyn/NewsApp"; // Use Expo proxy for mobile
+
+  console.log("🔗 Platform:", Platform.OS);
+  console.log("🔗 Configured Redirect URI:", redirectUri || "auto");
+
+  // Google Auth Configuration
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId:
+      "554710787770-8ro3t6fjhnc9lbbeibc8udn98tpvkvda.apps.googleusercontent.com",
+    redirectUri: redirectUri,
   });
 
-  // Log the redirect URI to help with debugging
+  // Handle Google OAuth Response
   useEffect(() => {
-    if (request) {
-      console.log("-----------------------------------------");
-      console.log("AUTH CONFIG v11:"); 
-      console.log("Platform:", Platform.OS);
-      console.log("Redirect URI:", request.redirectUri);
-      console.log("Response Type:", request.responseType);
-      console.log("-----------------------------------------");
-    }
-  }, [request]);
+    if (!response) return;
 
-  // Handle Google Sign-In response
-  useEffect(() => {
-    console.log("Auth Response Type:", response?.type);
-    if (response?.type === "success") {
-      const { authentication, params } = response;
-      console.log("Full Auth Response Params:", params);
-      
-      // On some platforms, the idToken might be in authentication or in params
-      const idToken = authentication?.idToken || params?.id_token;
-      
-      console.log("Auth successful, tokens received:", {
-        idToken: idToken ? "YES" : "NO",
-        accessToken: authentication?.accessToken ? "YES" : "NO",
-      });
+    const handleGoogleResponse = async () => {
+      try {
+        console.log("📱 Google Auth Response:", response.type);
 
-      if (idToken) {
-        const credential = GoogleAuthProvider.credential(idToken);
-        signInWithCredential(auth, credential).catch(err => {
-          console.error("Firebase Sign-In Error:", err);
-        });
-      } else {
-        console.warn("No idToken found in response. Google Sign-In with Firebase requires idToken.");
+        if (response.type === "success") {
+          const { id_token, authentication } = response.params;
+
+          // Try to get the token from different possible locations
+          const token = id_token || response.authentication?.idToken;
+
+          if (!token) {
+            console.error("❌ No ID token in response");
+            alert("Authentication failed: No ID token received from Google");
+            return;
+          }
+
+          console.log("🔐 Token received, signing in to Firebase...");
+
+          try {
+            // Create Firebase credential and sign in
+            const credential = GoogleAuthProvider.credential(token);
+            const result = await signInWithCredential(auth, credential);
+
+            console.log("✅ Successfully signed in:", result.user.email);
+          } catch (firebaseError: any) {
+            console.error("❌ Firebase error:", firebaseError);
+            alert(
+              `Firebase sign-in failed!\nError: ${firebaseError.code}\n${firebaseError.message}`
+            );
+            throw firebaseError;
+          }
+        } else if (response.type === "error") {
+          console.error("❌ OAuth Error:", response.error);
+          alert(
+            `Google sign-in failed: ${response.error?.message || "Unknown error"}`
+          );
+        }
+      } catch (error: any) {
+        console.error("❌ Error during sign-in:", error);
+
+        if (error.code === "auth/invalid-credential") {
+          alert(
+            "Invalid Google credentials. Please verify Firebase Console settings."
+          );
+        } else if (error.code === "auth/operation-not-allowed") {
+          alert("Google sign-in is not enabled in Firebase Console.");
+        } else if (!error.code || error.code.indexOf("auth/") !== 0) {
+          alert(`Sign-in error: ${error.message || "Unknown error"}`);
+        }
       }
-    } else if (response?.type === "error") {
-      console.error("Google Auth Response Error:", response.error);
-    }
+    };
+
+    handleGoogleResponse();
   }, [response]);
 
-  // Listen to auth state changes
   useEffect(() => {
-    // Safety timeout for web to prevent infinite loading
-    const timeout = Platform.OS === 'web' ? setTimeout(() => setLoading(false), 3000) : null;
-    let unsubscribeDoc: (() => void) | null = null;
-
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (timeout) clearTimeout(timeout);
-      
-      // Clean up previous doc listener if it exists
-      if (unsubscribeDoc) {
-        unsubscribeDoc();
-        unsubscribeDoc = null;
-      }
-
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Set up real-time listener for user document
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        
-        unsubscribeDoc = onSnapshot(userDocRef, async (snapshot) => {
-          if (snapshot.exists()) {
-            setUser(snapshot.data() as User);
-          } else {
-            // Create user document if it doesn't exist (e.g. first time login)
-            const newUser: User = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: firebaseUser.displayName || "User",
-              role: "user",
-              favoriteTopics: [],
-              createdAt: new Date().toISOString(),
-            };
-            await setDoc(userDocRef, newUser);
-            // The snapshot listener will fire again once the document is created
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error("Error listening to user doc:", error);
-          setLoading(false);
-        });
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (userDoc.exists()) {
+          setUser({ ...userDoc.data(), id: firebaseUser.uid } as User);
+        } else {
+          const newUser: User = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: firebaseUser.displayName || "User",
+            role: "user",
+            favoriteTopics: [],
+            savedArticles: [],
+            createdAt: new Date().toISOString(),
+          };
+          await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+          setUser(newUser);
+        }
       } else {
         setUser(null);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeDoc) unsubscribeDoc();
-      if (timeout) clearTimeout(timeout);
-    };
+    return unsubscribe;
   }, []);
+
+  const loginWithGoogle = async () => {
+    try {
+      console.log("🚀 Initiating Google Sign-In...");
+
+      if (!request) {
+        throw new Error(
+          "Google authentication is not ready. Please try again in a moment."
+        );
+      }
+
+      console.log("📝 Request config:", {
+        clientId: request.clientId,
+        redirectUri: request.redirectUri,
+      });
+
+      // Trigger the Google sign-in prompt
+      await promptAsync();
+
+      console.log("✅ Prompt completed");
+    } catch (error: any) {
+      console.error("❌ Google login error:", error);
+      throw new Error(error.message || "Failed to initiate Google sign-in");
+    }
+  };
 
   const login = async (email: string, password: string) => {
     try {
@@ -154,44 +179,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (email: string, password: string, name: string) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
       const newUser: User = {
-        id: userCredential.user.uid,
+        id: firebaseUser.uid,
         email,
         name,
         role: "user",
         favoriteTopics: [],
+        savedArticles: [],
         createdAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, "users", userCredential.user.uid), newUser);
+      await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+      setUser(newUser);
     } catch (error: any) {
-      throw new Error(error.message);
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    try {
-      console.log("Starting Google Login (v11)...");
-      
-      const result = await promptAsync({ 
-        //@ts-ignore
-        useProxy: Platform.OS !== 'web',
-        scheme: "newsapp",
-      });
-      
-      console.log("Prompt Result (v11):", result.type);
-      if (result.type === "success") {
-        console.log("Success Result Keys:", Object.keys(result));
-      } else if (result.type === "error") {
-        console.error("Auth Session Detailed Error:", result.error);
-        console.error("Full Result:", JSON.stringify(result));
-      }
-    } catch (error: any) {
-      console.error("loginWithGoogle Exception (v11):", error);
       throw new Error(error.message);
     }
   };
@@ -207,11 +211,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
     try {
-      const updatedUser = { ...user, ...updates };
-      await setDoc(doc(db, "users", user.id), updatedUser);
-      setUser(updatedUser);
+      await setDoc(doc(db, "users", user.id), { ...user, ...updates });
+      setUser({ ...user, ...updates });
     } catch (error: any) {
       throw new Error(error.message);
+    }
+  };
+
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
+    try {
+      const firebaseUser = auth.currentUser;
+
+      if (!firebaseUser || !firebaseUser.email) {
+        throw new Error("No user is currently signed in");
+      }
+
+      // Check if user signed in with Google
+      const isGoogleUser = firebaseUser.providerData.some(
+        (provider) => provider.providerId === "google.com"
+      );
+
+      if (isGoogleUser) {
+        throw new Error(
+          "Cannot change password for Google accounts. Please use Google to manage your password."
+        );
+      }
+
+      // Re-authenticate user before changing password (Firebase requirement)
+      const credential = EmailAuthProvider.credential(
+        firebaseUser.email,
+        currentPassword
+      );
+
+      await reauthenticateWithCredential(firebaseUser, credential);
+
+      // Update password
+      await updatePassword(firebaseUser, newPassword);
+
+      console.log("✅ Password updated successfully");
+    } catch (error: any) {
+      console.error("❌ Change password error code:", error.code);
+
+      if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        throw new Error("Mật khẩu hiện tại không đúng");
+      } else if (error.code === "auth/weak-password") {
+        throw new Error("Mật khẩu mới quá yếu. Sử dụng ít nhất 6 ký tự");
+      } else if (error.code === "auth/requires-recent-login") {
+        throw new Error(
+          "Vui lòng đăng xuất và đăng nhập lại trước khi đổi mật khẩu"
+        );
+      } else {
+        throw new Error(error.message || "Không thể đổi mật khẩu");
+      }
     }
   };
 
@@ -225,6 +282,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithGoogle,
         logout,
         updateUser,
+        changePassword,
       }}
     >
       {children}
@@ -232,10 +290,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};
