@@ -76,22 +76,66 @@ export default function HomeScreen() {
         if (isFullObject) {
           // Map external articles to our Article format
           const mappedArticles: Article[] = recommendations.map(
-            (item: any, index: number) => ({
-              id: item.url || `ext-${index}-${Date.now()}`,
-              title: item.title || "Tin tức đề xuất",
-              subtitle: item.summary || "",
-              content: `<p>${item.summary || ""}</p><br/><p>Xem chi tiết tại: <a href="${item.url}">${item.url}</a></p>`,
-              category: item.category || "Thông tin",
-              imageUrl:
-                "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80", // Standard news placeholder
-              author: "Tin tổng hợp",
-              publishedAt: new Date().toISOString(),
-              readTime: 3,
-              tags: [item.category || "AI đề xuất"],
-              views: 0,
-            })
+            (item: any, index: number) => {
+              // Extract tags - handle both array and string formats
+              let tags: string[] = [];
+
+              // Try different field names for tags
+              const tagSource = item.tags || item.keywords || item.categories;
+
+              if (Array.isArray(tagSource)) {
+                tags = tagSource;
+              } else if (typeof tagSource === 'string') {
+                // If it's a comma-separated string, split it
+                tags = tagSource.includes(',')
+                  ? tagSource.split(',').map((t: string) => t.trim())
+                  : [tagSource];
+              }
+
+              // If no tags found, use category as fallback
+              if (tags.length === 0 && item.category) {
+                tags = [item.category];
+              }
+
+              // Last resort fallback
+              if (tags.length === 0) {
+                tags = ["Tin tức"];
+              }
+
+              // Debug: Log raw API response for this item
+              console.log("🔍 API Item Debug:", {
+                title: item.title?.substring(0, 30) + "...",
+                category: item.category,
+                categories: item.categories,
+                tags: item.tags,
+                image: item.image || item.imageUrl || item.image_url
+              });
+
+              return {
+                id: item.url || `ext-${index}-${Date.now()}`,
+                title: item.title || "Tin tức đề xuất",
+                // Try multiple possible field names for subtitle/description
+                subtitle: item.subtitle || item.description || item.summary || "",
+                // Use content from API if available, otherwise create a template
+                content: item.content || `<p>${item.summary || item.description || ""}</p><br/><p>Xem chi tiết tại: <a href="${item.url}">${item.url}</a></p>`,
+                // Handle both category (string) and categories (array)
+                category: item.category ||
+                  (Array.isArray(item.categories) && item.categories.length > 0 ? item.categories[0] : null) ||
+                  (typeof item.categories === 'string' ? item.categories : null) ||
+                  "Đề xuất",
+                // Try multiple possible field names for image URL
+                imageUrl: item.imageUrl || item.image_url || item.image || item.thumbnail ||
+                  "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80",
+                author: item.author || "Tin tổng hợp",
+                publishedAt: item.publishedAt || item.published_at || new Date().toISOString(),
+                readTime: item.readTime || item.read_time || 3,
+                tags: tags,
+                views: item.views || 0,
+              };
+            }
           );
 
+          console.log("Mapped articles:", mappedArticles);
           setRecommendedArticles(mappedArticles);
         } else {
           // Assume these are Firestore IDs

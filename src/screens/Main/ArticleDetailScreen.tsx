@@ -79,6 +79,12 @@ export default function ArticleDetailScreen() {
 
   const incrementViewCount = async () => {
     try {
+      // Skip incrementing view count for external articles (from recommendations)
+      if (article.id.startsWith('ext-')) {
+        console.log("Skipping view count for external article:", article.id);
+        return;
+      }
+
       const userSuffix = user ? user.id : "guest";
       const storageKey = `viewed_article_${article.id}_${userSuffix}`;
       const lastViewed = await AsyncStorage.getItem(storageKey);
@@ -108,6 +114,12 @@ export default function ArticleDetailScreen() {
   const handleSave = async () => {
     if (!user) {
       Alert.alert("Thông báo", "Vui lòng đăng nhập để lưu bài viết");
+      return;
+    }
+
+    // Prevent saving external articles (from recommendations)
+    if (article.id.startsWith('ext-')) {
+      Alert.alert("Thông báo", "Không thể lưu bài viết từ nguồn bên ngoài");
       return;
     }
 
