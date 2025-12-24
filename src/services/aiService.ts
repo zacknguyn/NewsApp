@@ -22,7 +22,7 @@ const COLAB_API_URL = 'https://pawnable-martina-epistemically.ngrok-free.dev';
  */
 export const generateAISummary = async (
     content: string,
-    maxLength: number = 2048,
+    maxLength: number = 256,
     minLength: number = 50
 ): Promise<string> => {
     try {
@@ -112,7 +112,7 @@ export const getRecommendations = async (
 ): Promise<string[]> => {
     try {
         console.log(`AI Service: Requesting recommendations for category="${category}", topK=${topK}`);
-        
+
         // Validate input
         if (!category || typeof category !== 'string') {
             throw new Error('Category must be a non-empty string');
